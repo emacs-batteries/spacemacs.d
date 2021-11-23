@@ -1,4 +1,4 @@
-;; -*- mode: emacs-lisp; lexical-binding: t -*-
+; -*- mode: emacs-lisp; lexical-binding: t -*-
 ;; This file is loaded by Spacemacs at startup.
 ;; It must be stored in your home directory.
 
@@ -416,7 +416,8 @@ It should only modify the values of Spacemacs settings."
    ;; Press `SPC T n' to cycle to the next theme in the list (works great
    ;; with 2 themes variants, one dark and one light)
 
-   dotspacemacs-themes '(doom-gruvbox-light
+   dotspacemacs-themes '(kaolin-valley-dark
+                         doom-gruvbox-light
                          doom-solarized-light
                          doom-sourcerer
                          kaolin-valley-dark
@@ -531,7 +532,7 @@ It should only modify the values of Spacemacs settings."
    ;; If non-nil a progress bar is displayed when spacemacs is loading. This
    ;; may increase the boot time on some systems and emacs builds, set it to
    ;; nil to boost the loading time. (default t)
-   dotspacemacs-loading-progress-bar nil
+   dotspacemacs-loading-progress-bar t
 
    ;; If non-nil the frame is fullscreen when Emacs starts up. (default nil)
    ;; (Emacs 24.4+ only)
@@ -544,7 +545,7 @@ It should only modify the values of Spacemacs settings."
    ;; If non-nil the frame is maximized when Emacs starts up.
    ;; Takes effect only if `dotspacemacs-fullscreen-at-startup' is nil.
    ;; (default nil) (Emacs 24.4+ only)
-   dotspacemacs-maximized-at-startup t
+   dotspacemacs-maximized-at-startup nil
 
    ;; If non-nil the frame is undecorated when Emacs starts up. Combine this
    ;; variable with `dotspacemacs-maximized-at-startup' in OSX to obtain
@@ -603,6 +604,7 @@ It should only modify the values of Spacemacs settings."
                                :disabled-for-modes dired-mode
                                                    doc-view-mode
                                                    pdf-view-mode
+               markdown-mode
                                :size-limit-kb 1000)
 
 
@@ -631,7 +633,7 @@ It should only modify the values of Spacemacs settings."
 
    ;; If non-nil, start an Emacs server if one is not already running.
    ;; (default nil)
-   dotspacemacs-enable-server t
+   dotspacemacs-enable-server nil
 
    ;; Set the emacs server socket location.
    ;; If nil, uses whatever the Emacs default is, otherwise a directory path
@@ -752,7 +754,8 @@ If you are unsure, try setting them in `dotspacemacs/user-config' first."
   "Library to load while dumping.
 This function is called only while dumping Spacemacs configuration. You can
 `require' or `load' the libraries of your choice that will be included in the
-dump.")
+dump."
+)
 
 
 (defun dotspacemacs/user-config ()
@@ -762,7 +765,116 @@ configuration.
 Put your configuration code here, except for variables that should be set
 before packages are loaded."
 
+  (defun exit-message ()
+    "Define a friendly message to display for the re-bound exit command."
+    (interactive)
+    (message "Type C-x C-q to exit Emacs.  It's waaaay too easy to accidentally hit C-x C-c")
+    (ding))
 
+  (global-set-key (kbd "C-x C-c") 'exit-message) ;; It's waaaay too easy to accidentally Ctrl-x Ctrl-c
+  (global-set-key (kbd "C-x C-q") 'save-buffers-kill-terminal)
+
+  ;; Font sizing / zooming
+  ;; See: https://emacs.stackexchange.com/questions/28390/quickly-adjusting-text-to-dpi-changes
+  ;;
+  (defun my-dpi (&optional frame)
+    "Get the DPI of FRAME (or current if nil)."
+    (cl-flet ((pyth (lambda (w h)
+                      (sqrt (+ (* w w)
+                               (* h h)))))
+              (mm2in (lambda (mm)
+                       (/ mm 25.4))))
+      (let* ((atts (frame-monitor-attributes frame))
+             (pix-w (cl-fourth (assoc 'geometry atts)))
+             (pix-h (cl-fifth (assoc 'geometry atts)))
+             (pix-d (pyth pix-w pix-h))
+             (mm-w (cl-second (assoc 'mm-size atts)))
+             (mm-h (cl-third (assoc 'mm-size atts)))
+             (mm-d (pyth mm-w mm-h)))
+        (/ pix-d (mm2in mm-d)))))
+
+  (defun normalize-pts (base-pts)
+    "Normalize BASE-PTS based on pixels/inch of current display."
+    (let ((pt-zoom-factor (/ (my-dpi) 72)))
+      (message (format "Font scale factor: %f" pt-zoom-factor))
+      (round (* base-pts pt-zoom-factor))))
+
+
+  (defun zoom-by (delta-points)
+    "Increase font size by DELTA-POINTS."
+    (set-face-attribute 'default nil
+                        :height
+                        (+ (face-attribute 'default :height)
+                           delta-points))
+    (set-face-attribute 'variable-pitch nil
+                        :height
+                        (+ (face-attribute 'default :height)
+                           delta-points))
+    (set-face-attribute 'mode-line nil
+                        :height
+                        (+ (face-attribute 'mode-line :height)
+                           delta-points)))
+
+  (defun get-buffers-matching-mode (mode)
+    "Return a list of buffers where their `major-mode' is equal to MODE."
+    (let ((buffer-mode-matches '()))
+      (dolist (buf (buffer-list))
+        (with-current-buffer buf
+          (if (eq mode major-mode)
+              (add-to-list 'buffer-mode-matches buf))))
+      buffer-mode-matches))
+
+  (defun zoom-in ()
+    "Increase font size by 10 points."
+    (interactive)
+    (zoom-by 10)
+    (when (get-buffers-matching-mode 'xwidget-webkit-mode)
+      (xwidget-webkit-zoom-in)))
+
+  (defun zoom-out ()
+    "Decrease font size by 10 points."
+    (interactive)
+    (zoom-by -10)
+    (when (get-buffers-matching-mode 'xwidget-webkit-mode)
+      (xwidget-webkit-zoom-out)))
+
+  ;; change font size interactively
+  (global-set-key (kbd "C-=") #'zoom-in)
+  (global-set-key (kbd "C--") #'zoom-out)
+  (global-set-key (kbd "<C-wheel-down>") #'zoom-out)
+  (global-set-key (kbd "<C-wheel-up>") #'zoom-in)
+
+  (defun set-local-fonts ()
+    "Override fonts."
+    ;; default Latin font (e.g. Consolas)
+    (set-face-font 'default (format "Fira Code:size=%d" (normalize-pts 11)))
+    (set-face-font 'variable-pitch (format "Noto Sans:size=%d" (normalize-pts 11)))
+    (set-face-font 'mode-line (format "Noto Sans:weight=ultra-light:size=%d" (normalize-pts 12)))
+
+    ;; Modern color UTF-8 glyphs/emoji
+    (set-fontset-font t 'symbol "Noto Color Emoji")
+    (set-fontset-font t 'symbol "Symbola" nil 'append))
+
+  (when window-system
+    (if (daemonp)
+        (add-hook 'server-after-make-frame-hook #'set-local-fonts)
+      (set-local-fonts))
+
+    (set-frame-size (selected-frame) 120 42)
+    (set-face-attribute 'region nil :background "#777" :foreground "#ff"))
+
+  (setq auth-sources '("~/.ssh/.authinfo"))
+
+  (global-hl-line-mode 1) ; highlight current line, turn it on for all modes by default
+  (set-face-background 'hl-line "black")
+
+  (setq mouse-autoselect-window t)        ; Focus follows mouse inside Emacs please
+
+  ;; Horizontal scrolling, please
+  (setq-default truncate-lines t)
+
+  ;; No trailing whitespace, please...
+  (add-hook 'before-save-hook 'delete-trailing-whitespace)
 
   ;; LSP  hacking
   (setq lsp-ui-sideline-enable nil)
@@ -952,7 +1064,7 @@ before packages are loaded."
   ;; `SPC g L' - list all Git repositories in the defined paths,
   (setq magit-repository-directories
         '(("~/.emacs.d"  . 0)
-          ("~/projects/" . 2)))
+          ("~/code/" . 2)))
   ;;
   ;; end of version control configuration
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1379,3 +1491,22 @@ before packages are loaded."
 
 ;; Do not write anything past this comment. This is where Emacs will
 ;; auto-generate custom variable definitions.
+(defun dotspacemacs/emacs-custom-settings ()
+  "Emacs custom settings.
+This is an auto-generated function, do not modify its content directly, use
+Emacs customize menu instead.
+This function is called at the very end of Spacemacs initialization."
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(evil-want-Y-yank-to-eol nil)
+ '(safe-local-variable-values '((PIM . t) (magit-todos-exclude-globs "snippets/*"))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+)
