@@ -774,6 +774,32 @@ before packages are loaded."
   (global-set-key (kbd "C-x C-c") 'exit-message) ;; It's waaaay too easy to accidentally Ctrl-x Ctrl-c
   (global-set-key (kbd "C-x C-q") 'save-buffers-kill-terminal)
 
+  (defun XXXX-NN-colon_form (ISSUEKEY current-branch)
+    "SCRUM-123: <<commit message prefix"
+    (replace-regexp-in-string
+     (concat ".*?\\(" ISSUEKEY "\\).*")
+     "\\1: "
+     current-branch))
+
+  (defun feat_XXXX-NN_form (ISSUEKEY current-branch)
+    "feat: (SCRUM-123) <<commit message prefix"
+    (replace-regexp-in-string
+     (concat ".*?\\(" ISSUEKEY "\\).*")
+     "feat: (\\1) "
+     current-branch))
+
+  (defun find-jira-ticket-id-in-branchname ()
+    "Return any `JIRA-##' string from the branch name or the empty string."
+    (let ((ISSUEKEY "[[:upper:]]+-[[:digit:]]+")
+          (current-branch (magit-get-current-branch)))
+      (if (and current-branch
+               (string-match-p ISSUEKEY current-branch))
+          (feat_XXXX-NN_form ISSUEKEY current-branch)
+        "")))
+
+  (add-hook 'git-commit-setup-hook
+            (lambda () (insert (find-jira-ticket-id-in-branchname))))
+
   ;; Font sizing / zooming
   ;; See: https://emacs.stackexchange.com/questions/28390/quickly-adjusting-text-to-dpi-changes
   ;;
