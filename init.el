@@ -873,9 +873,9 @@ before packages are loaded."
   (defun set-local-fonts ()
     "Override fonts."
     ;; default Latin font (e.g. Consolas)
-    (set-face-font 'default (format "Fira Code:size=%d" (normalize-pts 11)))
-    (set-face-font 'variable-pitch (format "Noto Sans:size=%d" (normalize-pts 11)))
-    (set-face-font 'mode-line (format "Noto Sans:weight=ultra-light:size=%d" (normalize-pts 12)))
+    (set-face-font 'default (format "Fira Code:size=%d" 11.0))
+    (set-face-font 'variable-pitch (format "Noto Sans:size=%d" 11.0))
+    (set-face-font 'mode-line (format "Noto Sans:weight=ultra-light:size=%d" 14.0))
 
     ;; Modern color UTF-8 glyphs/emoji
     (set-fontset-font t 'symbol "Noto Color Emoji")
